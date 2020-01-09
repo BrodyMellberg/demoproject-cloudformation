@@ -20,6 +20,7 @@ public class HTTPCallController {
 	private final String USER_AGENT = "Mozilla/5.0";
 	
 	private static final String welcomemsg = "Welcome! for HTTP call";
+	private static final String region = "us-east-2"; //default AWS region
 	
 	
 	
@@ -36,7 +37,7 @@ public class HTTPCallController {
 	// HTTP GET request
 		private String sendGet() throws Exception {
 
-			String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf.us-west-1.vpce.amazonaws.com:4570/http";
+			String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
 URL obj = new URL(url);
 			HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
