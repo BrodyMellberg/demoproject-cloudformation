@@ -21,7 +21,6 @@ public class HTTPCallController
 	private static final String region = "us-east-2"; //default AWS region
 
 	@RequestMapping(value="/http", method=RequestMethod.GET )
-
 	@ResponseBody
     public Welcome welcomeUser() throws Exception
 	{
@@ -32,7 +31,8 @@ public class HTTPCallController
     // HTTP GET request
 	private String sendGet() throws Exception
 	{
-		String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
+		//String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
+		String url = "3.134.85.78:4570/http"; //utter madness
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 

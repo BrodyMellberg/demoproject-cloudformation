@@ -13,7 +13,6 @@ public class HealthCheckController
     private static final String welcomemsg = "Welcome!";
 	
 	@RequestMapping(value="/stat", method=RequestMethod.GET )
-
     @ResponseBody
     public Welcome welcomeUser()
     {

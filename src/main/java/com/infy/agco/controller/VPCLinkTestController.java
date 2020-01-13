@@ -15,7 +15,6 @@ public class VPCLinkTestController
     private static final String welcomemsg = "Welcome!";
 
     @RequestMapping(value = "/vpcinvoke/{welcome}", method = RequestMethod.POST)
-
     @ResponseBody
     public Welcome welcomeUser(@PathVariable("welcome") String welcome)
     {

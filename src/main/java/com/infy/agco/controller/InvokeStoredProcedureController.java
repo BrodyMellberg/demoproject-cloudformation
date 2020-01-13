@@ -13,7 +13,6 @@ public class InvokeStoredProcedureController
     private static final String welcomemsg = "Welcome!";
 	
 	@RequestMapping(value="/invoke", method=RequestMethod.GET )
-
     @ResponseBody
     public Welcome welcomeUser()
     {
