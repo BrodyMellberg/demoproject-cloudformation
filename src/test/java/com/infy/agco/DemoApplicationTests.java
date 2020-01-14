@@ -39,14 +39,14 @@ public class DemoApplicationTests {
 	public void testWelcome()
 	{
 		Welcome welcome = new Welcome("Test Message");
-		assertEquals("Test Message", welcome.getMessage());
+		Assert.assertEquals("Test Message", welcome.getMessage());
 	}
 
 	@Test
 	public void testWelcomeEmpty()
 	{
 		Welcome welcome = new Welcome();
-		assertEquals("", welcome.getMessage());
+		Assert.assertEquals("", welcome.getMessage());
 	}
 
 
