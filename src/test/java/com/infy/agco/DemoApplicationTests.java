@@ -29,9 +29,13 @@ public class DemoApplicationTests {
 		welcome = new Welcome("Test Welcome");
 	}
 */
-	// @autowired?
+	@Autowired
 	private HealthCheckController healthCheck;
+
+	@Autowired
 	private InvokeStoredProcedureController invokeController;
+
+	@Autowired
 	private VPCLinkTestController vpcController;
 
 	@Test
