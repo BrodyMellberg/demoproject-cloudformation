@@ -9,6 +9,7 @@ import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.*;
 //import static org.runners.JUnit4;
 
 //import com.infy.agco.*; // import entire package
@@ -36,19 +37,19 @@ public class DemoApplicationTests {
 	@Test
 	public void healthCheckTest()
     {
-	    assertThat(healthCheck).isNotNull();
+	    assertThat(healthCheck, is(notNullValue()));
     }
 
     @Test
     public void invokeTest()
 	{
-		assertThat(invokeController).isNotNull();
+		assertThat(invokeController, is(notNullValue()));
 	}
 
 	@Test
 	public void vpcLinkTest()
 	{
-		assertThat(vpcController).isNotNull();
+		assertThat(vpcController, is(notNullValue()));
 	}
 
 
