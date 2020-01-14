@@ -25,7 +25,8 @@ public class HTTPCallController
     public Welcome welcomeUser() throws Exception
 	{
 		//	sendGet();
-        return new Welcome("\n"+String.format(sendGet() )+"\n\n");
+        //return new Welcome("\n"+String.format(sendGet() )+"\n\n");
+		return new Welcome("\n"+String.format("The actual function doesn't work, this is a placeholder string"+"\n\n"));
     }
 
     // HTTP GET request

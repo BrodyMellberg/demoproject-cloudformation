@@ -10,7 +10,7 @@ import com.infy.agco.util.Welcome;
 @RestController
 public class InvokeStoredProcedureController
 {
-    private static final String welcomemsg = "Welcome!";
+    private static final String welcomemsg = "Welcome! This is InvokeStoredProcedureController";
 	
 	@RequestMapping(value="/invoke", method=RequestMethod.GET )
     @ResponseBody
