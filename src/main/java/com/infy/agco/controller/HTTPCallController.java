@@ -31,8 +31,10 @@ public class HTTPCallController
     // HTTP GET request
 	private String sendGet() throws Exception
 	{
-		//String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
-		String url = "3.134.85.78:4570/http"; //utter madness
+		String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
+		//String url = "3.134.85.78:4570/http";
+		/*hard coding the task IP won't work because the IP changes after every build*/
+		//String url =
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
 
