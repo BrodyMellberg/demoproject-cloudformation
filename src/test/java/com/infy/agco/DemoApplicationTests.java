@@ -1,15 +1,14 @@
 //package com.example.demo;
 package com.infy.agco;
 
-
 import com.infy.agco.util.*;
+import com.infy.agco.controller.*;
 
-import jdk.internal.jline.internal.TestAccessible;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 //import static org.runners.JUnit4;
 
 //import com.infy.agco.*; // import entire package
@@ -29,11 +28,29 @@ public class DemoApplicationTests {
 		welcome = new Welcome("Test Welcome");
 	}
 */
+	// @autowired?
+	private HealthCheckController healthCheck;
+	private InvokeStoredProcedureController invokeController;
+	private VPCLinkTestController vpcController;
+
 	@Test
-	public void contextLoads()
+	public void healthCheckTest()
     {
-	    System.out.println("working?");
+	    assertThat(healthCheck).isNotNull();
     }
+
+    @Test
+    public void invokeTest()
+	{
+		assertThat(invokeController).isNotNull();
+	}
+
+	@Test
+	public void vpcLinkTest()
+	{
+		assertThat(vpcController).isNotNull();
+	}
+
 
     @Test
 	public void testWelcome()
@@ -48,6 +65,8 @@ public class DemoApplicationTests {
 		Welcome welcome = new Welcome();
 		assertEquals("", welcome.getMessage());
 	}
+
+
 
 
 /*	@After
