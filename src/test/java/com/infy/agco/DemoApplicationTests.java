@@ -29,6 +29,13 @@ public class DemoApplicationTests {
 	{
 		welcome = new Welcome("Test Welcome");
 	}
+
+	@Test
+	public void contextLoads()
+	{
+		I don't know what to put here
+	}
+
 */
 	@Autowired
 	private HealthCheckController healthCheck;
