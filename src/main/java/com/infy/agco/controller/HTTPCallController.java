@@ -24,14 +24,15 @@ public class HTTPCallController
 	@ResponseBody
     public Welcome welcomeUser() throws Exception
 	{
-		//	sendGet();
+			sendGet();
         return new Welcome("\n"+String.format(sendGet() )+"\n\n");
+		//return new Welcome("\n"+String.format("The actual function doesn't work, this is a placeholder string"+"\n\n"));
     }
 
     // HTTP GET request
 	private String sendGet() throws Exception
 	{
-		String url = "http://vpce-0e3cd47c27842c6bb-rie2ycjm.vpce-svc-09314a7b4c6c78edf."+region+".vpce.amazonaws.com:4570/http";
+		String url = "http://www.google.com";
 		//String url = "3.134.85.78:4570/http";
 		/*hard coding the task IP won't work because the IP changes after every build*/
 		//String url =
