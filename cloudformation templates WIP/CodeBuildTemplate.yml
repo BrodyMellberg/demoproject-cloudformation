@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: 
+Description: CodeBuild stack in case user does not have their own codebuild project  
+
+Parameters:
+    BuildProjectName:
+        Description: Name your CodeBuild project
+        Type: String
+
+####    CODEBUILD PROJECT    ####
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-codebuild-project.html
+DemoProjectBuild:
+    Type: AWS::CodeBuild::Project
+    Properties: 
+        Artifacts: 
+            Type: CODEPIPELINE
+            # there are other parameters, but they're either
+            # irrelevant or ignored due to the type being CODEPIPELINE
+            # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-codebuild-project-artifacts.html
+
+        Description: "Build project according to buildspec.yml"
+        Environment: 
+            ComputeType: BUILD_GENERAL1_SMALL
+            # environment variables excluded
+            Image: "aws/codebuild/standard:2.0" # same as first pipeline
+            ImagePullCredentialsType: CODEBUILD
+            PrivilegedMode: true
+    #        RegistryCredential: 
+    #            RegistryCredential # hopefully shouldn't need
+            Type: ARM_CONTAINER
+        Name: !Ref BuildProjectName
+        ServiceRole: String
+        Source: 
+    #        Auth: 
+    #            SourceAuth
+            BuildSpec:# the default should suffice. Not sure if should comment whole line 
+            GitCloneDepth: 1
+    #        GitSubmodulesConfig: 
+    #            GitSubmodulesConfig
+    #        InsecureSsl: Boolean
+    #        Location: String # This will be specified in CodePipeline...
+    #    but
+    #   didn't we need the docker image built first so the task definition can be made
+            ReportBuildStatus: false
+    #        SourceIdentifier: String
+            Type: CODECOMMIT
+        SourceVersion: String # CODECOMMIT BRANCH   
+    #    TimeoutInMinutes: Integer
+    #    Triggers: 
+    #        ProjectTriggers
+        VpcConfig: 
+            SecurityGroupIds: 
+                - Ref: DemoProjectSecurityGroup
+            Subnets: 
+                - Ref: DemoProjectSub1
+                - Ref: DemoProjectSub2
+                - Ref: DemoProjectSub3 # I have no clue about that syntax 
+            VpcId: !Ref: DemoProjectVPC

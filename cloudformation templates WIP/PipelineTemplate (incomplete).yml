@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: 
+Parameters:
+    Branch:
+        Description: CodeCommit branch name
+        Type: String
+        Default: master
+    CodeCommitRepoName:
+        Description: CodeComit repository name
+        Type: String
+    CodeDeployApplicationName:
+        Description: CodeDeploy application name
+        Type: String
+    CodeBuildProjectName:
+        Description: Name of CodeBuild project
+        Type: String
+    # account ID etc
+    DemoProjectDeploymentGroup:
+        Description: something
+        Type: String
+    ECRRepoName:
+        Description: Where should the docker images be exported to?
+        Type: String
+        
+
+Resources:
+    DemoProjectS3Bucket:
+        Type: 'AWS::S3::Bucket'
+    
+    CodeCommitJavaRepo:
+        Type: AWS::CodeCommit::Repository
+            Properties:
+                RepositoryName:
+                    Ref: AWS::StackName
+                    RepositoryDescription: CodeCommit Repository
+                    Triggers:
+                        - Name: MasterTrigger
+                        CustomData: Project ID 12345
+                        DestinationArn:
+                            Ref: MySNSTopic
+                        Branches:
+                            - Master
+                        Events:
+                            - all
+    # NO policy, we going lawless
+    DemoProejectPipeline:
+        Type: 'AWS::CodePipeline::Pipeline'
+        Properties:
+            Name: demoproject-pipeline
+            RoleArn: !GetAtt 
+                - CodePipelineServiceRole
+                - Arn
+            Stages:
+                - Name: Source
+                    Actions:
+                        - Name: SourceAction
+                            ActionTypeId:
+                                Category: Source
+                                Owner: AWS
+                                Version: 1
+                                Provider: CodeCommit
+                            OutputArtifacts:
+                                - Name: demoproject-sourceartif
+                            Configuration:
+                                BranchName: !Ref Branch
+                                RepositoryName: !Ref CodeCommitRepoName ## not sure if correct syntax
+                                PollForSourceChanges: false
+                            RunOrder: 1            
+                - Name: Build
+                    Actions:
+                        - Name: BuildAction
+                            ActionTypeId:
+                                Category: Build
+                                Owner: AWS
+                                Version: 1
+                                Provider: CodeBuild
+                            InputArtifacts:
+                                Name: demoproject-sourceartif
+                            OutputArtifacts:
+                                Name: demoproject-buildartif
+                            Configuration:
+                                ProjectName: !Ref CodeBuildProject
+                                PrimarySource: demoproject-sourceartif
+                                EnvironmentVariables: 
+                                    -
+                                        Name: AWS_DEFAULT_REGION # buildspec stuff
+                                        Type: PLAINTEXT
+                                        Value: !Ref AWS::Region 
+                                    -
+                                        Name: AWS_ACCOUNT_ID
+                                        Type:PLAINTEXT
+                                        Value: !Ref AWS::AccountId #subject to change of course
+                                    -
+                                        Name: IMAGE_TAG
+                                        Type: PLAINTEXT
+                                        Value: latest
+                                    -
+                                        Name: IMAGE_REPO_NAME
+                                        Type: PLAINTEXT
+                                        Value: !Ref ECRRepoName # SOFT CODE THIS PLS
+                                    #Is this syntax correct?                                    
+                                    
+                            RunOrder: 1                               
+                - Name: Deploy
+                    Actions:
+                        - Name: DeployAction
+                            InputArtifacts:
+                                - Name: demoproject-buildartif
+                            ActionTypeId:
+                                Category: Deploy
+                                Owner: AWS
+                                Version: 1
+                                Provider: CodeDeploy
+                            Configuration:
+                                ApplicationName: !Ref CodeDeployApplicationName 
+                                DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
+                            RunOrder: 1
+        ArtifactStore:
+            Type: S3
+            Location: !Ref DemoProjectS3Bucket
+
+    CodeBuildProject:
+        Type: AWS::CodeBuild::Project
+        DependsOn: CodeBuildServiceRole # dependson is useful 
+        Properties: 
+            Artifacts: 
+                Type: CODEPIPELINE 
+                # it could be NO_ARTIFACTS. Maybe CP artifacts
+                # are only for when the codebuild project is being
+                # created in a separate document. 
+
+            Description: "Build project according to buildspec.yml"
+            Environment: 
+                ComputeType: BUILD_GENERAL1_SMALL
+                # environment variables excluded
+                Image: "aws/codebuild/standard:2.0" # same as first pipeline
+                ImagePullCredentialsType: CODEBUILD
+                PrivilegedMode: true
+        #        RegistryCredential: 
+        #            RegistryCredential # hopefully shouldn't need
+                Type: ARM_CONTAINER
+            Name: !Ref BuildProjectName
+#   could use !{AWS::StackName}BuildProject to keep everything unique
+#   and the names consistent 
+            ServiceRole: !Ref CodeBuildServiceRole
+            Source: 
+                Type: CODECOMMIT
+                Location:
+                    Fn::Join:
+                        - ""
+                        - - "https://git-codecommit."
+                            - Ref: AWS::Region
+                            - ".amazonaws.com/v1/repos/"
+                            - Ref: AWS::StackName
+                ReportBuildStatus: false
+            
+            # excluded VPC config stuff, hopefully it's not needed?
+            # it might be needed, the template doesn't include any 
+            # reference to load balancing 
+            
+    CodeBuildServiceRole: # straight up plagiarised
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: "2012-10-17" # ?????
+                Statement:
+                    Effect: Allow
+                    Principal:
+                        Service: codebuild.amazonaws.com
+                    Action: sts:AssumeRole
+            ManagedPolicyArns:
+                - arn:aws:iam::aws:policy/AdministratorAccess
+
+# I don't know if this is needed but I'm going to leave it anyway 
+    CodePipelineServiceRole:
+        Type: 'AWS::IAM::Role'
+        Properties:
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                        Principal:
+                            Service:
+                                - codepipeline.amazonaws.com
+                        Action: 'sts:AssumeRole'
+            Path: /
+            Policies:
+                - PolicyName: AWS-CodePipeline-Service-3
+                    PolicyDocument:
+                        Version: 2012-10-17
+                        Statement:
+                            - Effect: Allow
+                                Action:
+                                    - 'codecommit:CancelUploadArchive'
+                                    - 'codecommit:GetBranch'
+                                    - 'codecommit:GetCommit'
+                                    - 'codecommit:GetUploadArchiveStatus'
+                                    - 'codecommit:UploadArchive'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                    - 'codedeploy:CreateDeployment'
+                                    - 'codedeploy:GetApplicationRevision'
+                                    - 'codedeploy:GetDeployment'
+                                    - 'codedeploy:GetDeploymentConfig'
+                                    - 'codedeploy:RegisterApplicationRevision'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                    - 'codebuild:BatchGetBuilds'
+                                    - 'codebuild:StartBuild'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                    - 'devicefarm:ListProjects'
+                                    - 'devicefarm:ListDevicePools'
+                                    - 'devicefarm:GetRun'
+                                    - 'devicefarm:GetUpload'
+                                    - 'devicefarm:CreateUpload'
+                                    - 'devicefarm:ScheduleRun'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                    - 'lambda:InvokeFunction'
+                                    - 'lambda:ListFunctions'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                  - 'iam:PassRole'
+                                Resource: '*'
+                            - Effect: Allow
+                                Action:
+                                    - 'elasticbeanstalk:*'
+                                    - 'ec2:*'
+                                    - 'elasticloadbalancing:*'
+                                    - 'autoscaling:*'
+                                    - 'cloudwatch:*'
+                                    - 's3:*'
+                                    - 'sns:*'
+                                    - 'cloudformation:*'
+                                    - 'rds:*'
+                                    - 'sqs:*'
+                                    - 'ecs:*'
+                                Resource: '*'

@@ -1,3 +1,6 @@
+AWSTemplateFormatVersion: 'date'
+Description:
+    
 ####    USER DETAILS    ####
 user:
     accountId: 343850139185
@@ -7,7 +10,8 @@ user:
         avZone1: us-east-2a
         avZone2: us-east-2b
         avZone3: us-east-2c #NOTE; there may only be two. Delete third subnet if necessary
-
+    ecrRepoName: demoproject-repo
+    
 ####    CLUSTER    ####
 DemoProjectCluster:
     Type: AWS::ECS::Cluster
@@ -36,26 +40,37 @@ DemoProjectSub1:
     Properties: 
     #    AssignIpv6AddressOnCreation: Boolean
         AvailabilityZone: user.region.avZone1
-        CidrBlock: 10.0.0.0/20
+        CidrBlock: 10.0.0.0/24
     #    Ipv6CidrBlock: String
         MapPublicIpOnLaunch: true
-        VpcId: Ref:DemoProjectVPC #maybe it should be !Ref?
+        VpcId: !Ref:DemoProjectVPC #maybe it should be !Ref?
 
 DemoProjectSub2:
     Type: AWS::EC2::Subnet
     Properties:
         AvailabilityZone: user.region.avZone2
-        CidrBlock: 10.0.16.0/20
+        CidrBlock: 10.0.1.0/24
         MapPublicIpOnLaunch: true
-        VpcId: Ref:DemoProjectVPC
+        VpcId: !Ref DemoProjectVPC
 
 DemoProjectSub3:
     Type: AWS::EC2::Subnet
     Properties: 
         AvailabilityZone: user.region.avZone3
-        CidrBlock: 10.0.32.0/20
+        CidrBlock: 10.0.2.0/24
         MapPublicIpOnLaunch: true
-        VpcId: Ref:DemoProjectVPC
+        VpcId: !Ref DemoProjectVPC
+
+####    INTERNET GATEWAY    ####
+DemoProjectInternetGateway:
+Type: AWS::EC2::InternetGateway
+Properties: 
+
+DemoProjectGatewayAttachment:
+Type: AWS::EC2::VPCGatewayAttachment
+Properties: 
+    InternetGatewayId: !Ref DemoProjectInternetGateway # not sure if this needs to be Ref or something
+    VpcId: !Ref DemoProjectVPC
 
 ####    SECURITY GROUP    ####	
 
@@ -73,7 +88,7 @@ DemoProjectSecurityGroup:
     #        - Egress  # ?????
     #    SecurityGroupIngress: 
     #        - Ingress # ?????
-        VpcId: Ref: DemoProjectVPC
+        VpcId: !Ref DemoProjectVPC
 
 /// Load Balancer Target Group ///
 # ??
@@ -133,43 +148,9 @@ DemoProjectBucket:
 
 /// Container ///
 
-####    CONTAINER DEFINITION    ####
-# I am not sure if this is different to a standard container declaration
-# identical to imagedefinition.json
-DemoProjectContainerDefinition:
-    name: demoproject-container
-    image: repository-url/image:tag
-    # (user.accountId).dkr.ecr.(user.region.default).amazonaws.com/(name):(tag)
-    # there has GOT to be a way to concatenate this into one string using the input from other variables 
 
-    # need to BUILD FIRST and PUSH TO ECR
-    # although creating the image won't change the ECR URL...
 
-####    TASK DEFINITION    ####
-DemoProjectTaskDef:
-    Type: AWS::ECS::TaskDefinition
-    Properties: 
-        ContainerDefinitions: 
-            - DemoProjectContainerDefinition
-        Cpu: 256
-#        ExecutionRoleArn: String # FROM MEMORY I don't think it's needed
-#        Family: String
-#        InferenceAccelerators: 
-#            - InferenceAccelerator
-#        IpcMode: String
-        Memory: 512
-        NetworkMode: awsvpc # must be awsvpc when using Fargate
-# A NetworkConfiguration must be defined in service 
-#        PidMode: String
-#        PlacementConstraints: 
-#            - TaskDefinitionPlacementConstraint # NOT valid with Fargate
-#        ProxyConfiguration: 
-#            ProxyConfiguration
-        RequiresCompatibilities: 
-            - FARGATE
-        TaskRoleArn: String # something about Amazon ECS task role
-#        Volumes: 
-#            - Volume
+
 
 
 ####    LOAD BALANCER    ####
@@ -193,8 +174,25 @@ DemoProjectLoadBalancer:
         Type: application # different to the previous "Type"
 
 
-####    TARGET GROUP    ####
+####    LISTENER    ####
+# experimental 
+DemoProjectListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+        Certificates: 
+            - Certificate
+        DefaultActions: 
+            - Action
+        LoadBalancerArn: String
+        Port: Integer
+        Protocol: String
+        SslPolicy: String
 
+
+
+####    TARGET GROUP    ####
+DemoProjectTargetGroup:
+Type
 
 
 ####    SERIVCE    ####
@@ -269,11 +267,11 @@ DemoProjectBuild:
                 -
                     Name: AWS_DEFAULT_REGION # buildspec stuff
                     Type: PLAINTEXT
-                    Value: "us-east-2"
+                    Value: user.region.default
                 -
                     Name: AWS_ACCOUNT_ID
                     Type:PLAINTEXT
-                    Value: "343850139185" #subject to change of course
+                    Value: user.accountId #subject to change of course
                 -
                     Name: IMAGE_TAG
                     Type: PLAINTEXT
@@ -281,7 +279,7 @@ DemoProjectBuild:
                 -
                     Name: IMAGE_REPO_NAME
                     Type: PLAINTEXT
-                    Value: demoproject-repo # SOFT CODE THIS PLS
+                    Value: user.ecrRepoName # SOFT CODE THIS PLS
                 #Is this syntax correct?
             Image: "aws/codebuild/standard:2.0" # same as first pipeline
             ImagePullCredentialsType: CODEBUILD
@@ -324,8 +322,51 @@ DemoProjectBuild:
             Subnets: 
                 - Ref: DemoProjectSub1
                 - Ref: DemoProjectSub2
-                - Ref: DemoProjectSub3 
-            VpcId: Ref: DemoProjectVPC
+                - Ref: DemoProjectSub3 # I have no clue about that syntax 
+            VpcId: !Ref: DemoProjectVPC
+
+
+
+####    CONTAINER DEFINITION    ####
+# I am not sure if this is different to a standard container declaration
+# identical to imagedefinition.json
+DemoProjectContainerDefinition:
+    name: demoproject-container
+    image: (user.accountId).dkr.ecr.us-east-2.amazonaws.com/demoproject-repo:latest
+    # (user.accountId).dkr.ecr.(user.region.default).amazonaws.com/(name):(tag)
+    # there has GOT to be a way to concatenate this into one string using the input from other variables 
+
+    # need to BUILD FIRST and PUSH TO ECR
+    # although creating the image won't change the ECR URL...
+
+
+
+####    TASK DEFINITION    ####
+DemoProjectTaskDef:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+        ContainerDefinitions: 
+            - DemoProjectContainerDefinition
+        Cpu: 256
+#        ExecutionRoleArn: String # FROM MEMORY I don't think it's needed
+#        Family: String
+#        InferenceAccelerators: 
+#            - InferenceAccelerator
+#        IpcMode: String
+        Memory: 512
+        NetworkMode: awsvpc # must be awsvpc when using Fargate
+# A NetworkConfiguration must be defined in service 
+#        PidMode: String
+#        PlacementConstraints: 
+#            - TaskDefinitionPlacementConstraint # NOT valid with Fargate
+#        ProxyConfiguration: 
+#            ProxyConfiguration
+        RequiresCompatibilities: 
+            - FARGATE
+        TaskRoleArn: String # something about Amazon ECS task role
+#        Volumes: 
+#            - Volume
+
 
 ####    CODEDEPLOY    ####
 # application, config, deployment group
@@ -348,7 +389,7 @@ DemoProjectDeploymentGroup:
     Properties: 
 #        AlarmConfiguration: 
 #            AlarmConfiguration
-        ApplicationName: Ref: DemoProjectCodeDeployApp
+        ApplicationName: !Ref: DemoProjectCodeDeployApp
         AutoRollbackConfiguration: 
             AutoRollbackConfiguration
 #        AutoScalingGroups: 
