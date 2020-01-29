@@ -32,8 +32,6 @@ Parameters:
   GitHubOAuth:
     Type: String
   
-  # alt set of CodeCommit parameters
-  
 Resources:
   DemoProjectTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -182,11 +180,11 @@ Resources:
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           IpProtocol: -1
-          
+  
+  # PIPELINE RESOURCES  
   DemoProjectS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: ${AWS::StackName}-bucket
       VersioningConfiguration:
         Status: Enabled
       AccessControl: BucketOwnerFullControl
@@ -219,7 +217,7 @@ Resources:
     
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
-    DependsOn: CodeBuildServiceRole # dependson is useful 
+    DependsOn: CodeBuildServiceRole 
     Properties: 
       Name: !Sub ${AWS::StackName}-buildproject      
       Source: 
@@ -229,8 +227,7 @@ Resources:
       Description: "Build project according to buildspec.yml"
       Environment: 
         ComputeType: BUILD_GENERAL1_SMALL
-        # environment variables excluded
-        Image: "aws/codebuild/standard:2.0" # same as first pipeline
+        Image: "aws/codebuild/standard:2.0" 
         ImagePullCredentialsType: CODEBUILD
         PrivilegedMode: true
         Type: LINUX_CONTAINER
@@ -243,13 +240,12 @@ Resources:
             Value: Latest
           - Name: IMAGE_REPO_NAME
             Value: !Ref ECRRepoName      
-
       ServiceRole: !Ref CodeBuildServiceRole
 
-  DemoProejectPipeline:
+  DemoProjectPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
     Properties:
-      Name: ${AWS::StackName}-pipeline
+      Name: !Sub ${AWS::StackName}-pipeline
       RoleArn: !GetAtt 
         - CodePipelineServiceRole
         - Arn
@@ -266,7 +262,7 @@ Resources:
                 Version: 1
                 Provider: GitHub
               OutputArtifacts:
-                - Name: ${AWS::StackName}-sourceartif
+                - Name: sourceartif
               Configuration:
                 Owner: !Ref GitHubOwner
                 Repo: !Ref GitHubRepo
@@ -283,25 +279,24 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               InputArtifacts:
-                Name: ${AWS::StackName}-sourceartif
+                - Name: sourceartif
               OutputArtifacts:
-                Name: ${AWS::StackName}-buildartif
+                - Name: buildartif
               Configuration:
                 ProjectName: !Ref CodeBuildProject
-                EnvironmentVariables: 
-              RunOrder: 1                               
+              RunOrder: 2                               
         - Name: Deploy
           Actions:
             - Name: DeployAction
               InputArtifacts:
-                - Name: ${AWS::StackName}-buildartif
+                - Name: buildartif
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
                 Version: 1
-                Provider: CodeDeploy
+                Provider: ECS
               Configuration:
-                ApplicationName: !Ref CodeDeployApplicationName 
-                DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
-              RunOrder: 1 
+                ClusterName: !Ref DemoProjectCluster
+                ServiceName: !Ref DemoProjectService
+              RunOrder: 3 
    
