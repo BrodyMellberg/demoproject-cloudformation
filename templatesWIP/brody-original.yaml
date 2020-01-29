@@ -8,20 +8,12 @@ Parameters:
   mysubnet1:
     Type: List<AWS::EC2::Subnet::Id>
     Description: Please select 1st private subnet for your Service
-
-  
- # mysg1:
-  # Type: AWS::EC2::SecurityGroup::Id
-   # Description: Please select the SecurityGroup for your Service
-
-  # mysg2:
-   # Type: AWS::EC2::SecurityGroup::Id
-   # Description: Please select the SecurityGroup for the Load role
-
   myVPC:
     Type: AWS::EC2::VPC::Id
     Description: Please select the vpc for your TargetGroup
-
+  
+  # CUSTOM PARAMETERS (Brody)
+  
 
 Resources:
   myLoadBalancerTargetGroup:
