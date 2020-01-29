@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: 2010-09-09
+teststack:
+    Type: AWS::CloudFormation::Stack
+    Properties: 
+        Parameters: 
+            mysubnet1: 
+                - subnet-00345bf161647b736
+                - subnet-07de10ddb740b2190
+                - subnet-03c8287fe911e3ec2
+            myVPC:
+                - vpc-023e6d15c7c664914
+                # might be these have to be put in manually
+        TemplateURL: s3://stack-template-storage/brody-original.yaml
+        # capabilities: CAPABILITY_NAMED_IAM # Doesn't work m8

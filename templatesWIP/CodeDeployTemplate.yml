@@ -1,0 +1,62 @@
+####    CODEDEPLOY    ####
+DemoProjectCodeDeployApp:
+    Type: AWS::CodeDeploy::Application
+    Properties: 
+        ApplicationName: demoproject-codedeployapp
+        ComputePlatform: ECS
+
+DemoProjectDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn: DemoProjectCodeDeployApp
+    Properties: 
+        ApplicationName: !Ref DemoProjectCodeDeployApp
+        Deployment:
+            Description: String
+                #IgnoreApplicationStopFailures: Boolean
+                Revision: 
+                    RevisionType: S3
+                    S3Location: 
+                        Bucket: DemoProjectS3Bucket
+                        BundleType: zip # pretty sure it's zip
+                        #ETag: String
+                        Key: demoproject-buildartif # !!!! need to differentiate between source and build artif bucket
+                        # hopefully it can be found in the right directory
+                        #Version: String
+
+
+
+        DeploymentConfigName: CodeDeployDefault.AllAtOnce
+        DeploymentGroupName: demoproject-codedeploygroup
+        DeploymentStyle:
+            DeploymentOption: WITH_TRAFFIC_CONTROL
+            DeploymentType: BLUE_GREEN
+             #  " If you specify this property with a blue/green deployment type, 
+             # don't specify the AutoScalingGroups, LoadBalancerInfo, or Deployment properties.
+        
+        # LoadBalancerInfo: 
+            # ElbInfoList:
+                # Name: DemoProjectLoadBalancer # other doc
+            # TargetGroupInfoList:
+                # Name: # depends on BG/IP
+        ServiceRoleArn: Fn::GetAtt:[CodeDeployServiceRole, Arn]
+        TriggerConfigurations: 
+           - TriggerConfig
+
+CodeDeployServiceRole: # stolen from codebuild service role 
+    Type: AWS::IAM::Role
+    Properties:
+        AssumeRolePolicyDocument:
+            Version: "2012-10-17" # ?????
+            Statement:
+                Effect: Allow
+                Principal:
+                    Service: codedeploy.amazonaws.com
+                Action: sts:AssumeRole
+        ManagedPolicyArns:
+            - arn:aws:iam::aws:policy/AdministratorAccess
+
+
+# scroll down for load balance info
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-codedeploy-deploymentgroup.html#cfn-codedeploy-deploymentgroup-deploymentstyle
+
+

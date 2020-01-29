@@ -1,0 +1,5 @@
+create-stack
+--stack-name teststack
+[--template-url s3://stack-template-storage/brody-original.yaml]
+[--parameters myVPC=vpc-023e6d15c7c664914 mysubnet1="subnet-00345bf161647b736, subnet-07de10ddb740b2190, subnet-03c8287fe911e3ec2"]
+[--capabilities CAPABILITY_NAMED_IAM]

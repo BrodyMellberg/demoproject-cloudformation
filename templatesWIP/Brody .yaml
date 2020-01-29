@@ -1,0 +1,170 @@
+Parameters:
+  # SERVICE PARAMETERS
+  DemoSubnet1:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Please select 1st private subnet for your Service
+  ECRImageRepo:
+    Description: Enter url of ECR Repo for docker images
+    Type: String
+  
+ # mysg1:
+  # Type: AWS::EC2::SecurityGroup::Id
+   # Description: Please select the SecurityGroup for your Service
+
+  # mysg2:
+   # Type: AWS::EC2::SecurityGroup::Id
+   # Description: Please select the SecurityGroup for the Load role
+
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: Please select the vpc for your TargetGroup
+
+Resources:
+  DemoELBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /opc/v1/ping
+      HealthCheckPort: 8089
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200-299
+      Name: DemoELBTargetGroup
+      Port: 8089
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: DemoELBTargetGroup-tag
+      TargetType: ip
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref VPC
+
+  DemoLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: demoproject-loadbalancer
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref POCContainerSecurityGroup
+      Subnets: !Ref mysubnet1
+      Tags:
+        - Key: Name
+          Value: DemoLoadBalancer-tag
+      Type: application
+
+  LoadBalancerListener:
+    DependsOn: DemoLoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref DemoELBTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref DemoLoadBalancer
+      Port: 8089
+      Protocol: HTTP
+
+  # ECS RESOURCES
+  DemoProjectCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: demoproject-fargate-cluster
+      Tags:
+      - Key: Name
+        Value: demoproject-fargate-cluster
+
+  myLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: myLogGroup
+      RetentionInDays: 7
+
+  DemoTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Image: !Ref ECRImageRepo
+          Name: demoproject
+          # Environment:
+            # - Name: POSTGRES_PASSWORD
+              # Value: docker
+          PortMappings:
+            - ContainerPort: 8089
+              Protocol: HTTP
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:  !Ref myLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix:  'database-con'
+      Cpu: "512"
+      ExecutionRoleArn: arn:aws:iam::969829910614:role/ecsTaskExecutionRole # is this pre-existing?
+      Family: DemoTaskDefinition-2
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE 
+      Tags:
+        - Key: Name
+          Value: AWS-ecs-fargate-task-definition-cf-tag
+
+  myService:
+    DependsOn: DemoLoadBalancerListener
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref DemoProjectCluster
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: demoproject
+          ContainerPort: 8089
+          TargetGroupArn: !Ref DemoELBTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: 
+            - !Ref POCContainerSecurityGroup
+          Subnets: !Ref mysubnet1 
+      SchedulingStrategy: REPLICA
+      ServiceName: demoproject-service
+      PlatformVersion: LATEST
+      Tags:
+        - Key: Name
+          Value: demoproject-service-tag
+      TaskDefinition: !Ref DemoTaskDefinition
+            
+       
+  POCContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref myVPC
+      GroupDescription: for ecs containers
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "8089"
+          IpProtocol: -1
+          ToPort: "3000"
+        - FromPort: "3000"
+          IpProtocol: -1
+          ToPort: "27017"
+        - FromPort: "27017"
+          IpProtocol: -1
+          ToPort: "8083"
+        - FromPort: "8083"
+          IpProtocol: -1
+          
+  POCLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1

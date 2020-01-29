@@ -25,23 +25,27 @@ Parameters:
 Resources:
     DemoProjectS3Bucket:
         Type: 'AWS::S3::Bucket'
+        Properties:
+            VersioningConfiguration:
+                Status: Enabled
+            AccessControl: BucketOwnerFullControl
     
-    CodeCommitJavaRepo:
-        Type: AWS::CodeCommit::Repository
-            Properties:
-                RepositoryName:
-                    Ref: AWS::StackName
-                    RepositoryDescription: CodeCommit Repository
-                    Triggers:
-                        - Name: MasterTrigger
-                        CustomData: Project ID 12345
-                        DestinationArn:
-                            Ref: MySNSTopic
-                        Branches:
-                            - Master
-                        Events:
-                            - all
-    # NO policy, we going lawless
+    # CodeCommitJavaRepo:
+        # Type: AWS::CodeCommit::Repository
+            # Properties:
+                # RepositoryName:
+                    # Ref: AWS::StackName
+                    # RepositoryDescription: CodeCommit Repository
+                    # Triggers:
+                        # - Name: MasterTrigger
+                        # CustomData: Project ID 12345 # ??? this is for email notifications we don't need it 
+                        # DestinationArn:
+                            # Ref: MySNSTopic
+                        # Branches:
+                            # - Master
+                        # Events:
+                            # - all
+    # NO policy
     DemoProejectPipeline:
         Type: 'AWS::CodePipeline::Pipeline'
         Properties:
@@ -49,6 +53,9 @@ Resources:
             RoleArn: !GetAtt 
                 - CodePipelineServiceRole
                 - Arn
+            ArtifactStore:
+                Type: S3
+                Location: !Ref DemoProjectS3Bucket
             Stages:
                 - Name: Source
                     Actions:
@@ -62,7 +69,7 @@ Resources:
                                 - Name: demoproject-sourceartif
                             Configuration:
                                 BranchName: !Ref Branch
-                                RepositoryName: !Ref CodeCommitRepoName ## not sure if correct syntax
+                                RepositoryName: !Ref CodeCommitRepoName 
                                 PollForSourceChanges: false
                             RunOrder: 1            
                 - Name: Build
@@ -114,9 +121,7 @@ Resources:
                                 ApplicationName: !Ref CodeDeployApplicationName 
                                 DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
                             RunOrder: 1
-        ArtifactStore:
-            Type: S3
-            Location: !Ref DemoProjectS3Bucket
+
 
     CodeBuildProject:
         Type: AWS::CodeBuild::Project
