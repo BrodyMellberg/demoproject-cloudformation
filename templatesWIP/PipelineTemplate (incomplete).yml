@@ -1,3 +1,6 @@
+
+## This document is quite obsolete, but the pipeline role 
+## at the bottom MAY come in useful for whatever reason
 AWSTemplateFormatVersion: 
 Parameters:
     Branch:

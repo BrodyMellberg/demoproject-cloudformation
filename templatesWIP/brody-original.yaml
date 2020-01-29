@@ -1,7 +1,11 @@
 # CHANGES
 # - ContainerDefinition image location
 # - task execution role arn 
-# - 
+# 
+# **Important**
+#  This file is almost identical to "Brody.yaml" provided by Sudhakar
+#  but with minor changes to make it work properly
+#
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   # SERVICE PARAMETERS

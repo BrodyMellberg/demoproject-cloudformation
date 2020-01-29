@@ -4,7 +4,7 @@
 # constraints
 
 # VPC, Load Balancer, Subnet code provided by Sudhakar Vuppalapati
-# PRE-REQUISITES
+# PREREQUISITES
 # Have a docker image in the ECR repo with the tag 'latest'
 # Update the project buildspec or stack build commands to 
 # make CodeBuild push new images to this repo with this tag
@@ -18,13 +18,22 @@ Parameters:
   DemoProjectVPC:
     Type: AWS::EC2::VPC::Id
     Description: Please select the vpc for your TargetGroup (default VPC recommended)
+  
   ECRRepoName:
     Description: Name of the ECR Repo
     Type: String
-    
-  # CUSTOM PARAMETERS (Brody)
   
-
+  GitHubOwner:
+    Type: String
+  GitHubRepo:
+    Type: String
+  GitHubBranch:
+    Type: String
+  GitHubOAuth:
+    Type: String
+  
+  # alt set of CodeCommit parameters
+  
 Resources:
   DemoProjectTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -177,6 +186,7 @@ Resources:
   DemoProjectS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: ${AWS::StackName}-bucket
       VersioningConfiguration:
         Status: Enabled
       AccessControl: BucketOwnerFullControl
@@ -185,19 +195,33 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            Effect: Allow
-            Principal:
-              Service: codebuild.amazonaws.com
-            Action: sts:AssumeRole
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: codebuild.amazonaws.com
+          Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
-
+    
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+    
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     DependsOn: CodeBuildServiceRole # dependson is useful 
     Properties: 
+      Name: !Sub ${AWS::StackName}-buildproject      
       Source: 
         Type: CODEPIPELINE      
       Artifacts: 
@@ -219,10 +243,65 @@ Resources:
             Value: Latest
           - Name: IMAGE_REPO_NAME
             Value: !Ref ECRRepoName      
-      Name: !Sub ${AWS::StackName}-buildproject
+
       ServiceRole: !Ref CodeBuildServiceRole
 
-             
-  
-    
-    
+  DemoProejectPipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: ${AWS::StackName}-pipeline
+      RoleArn: !GetAtt 
+        - CodePipelineServiceRole
+        - Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref DemoProjectS3Bucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: ${AWS::StackName}-sourceartif
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubOAuth
+                PollForSourceChanges: false
+              RunOrder: 1            
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              InputArtifacts:
+                Name: ${AWS::StackName}-sourceartif
+              OutputArtifacts:
+                Name: ${AWS::StackName}-buildartif
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+                EnvironmentVariables: 
+              RunOrder: 1                               
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: ${AWS::StackName}-buildartif
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !Ref CodeDeployApplicationName 
+                DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
+              RunOrder: 1 
+   

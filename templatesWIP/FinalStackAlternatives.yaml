@@ -1,0 +1,34 @@
+# CODECOMMIT Source Stage for Pipeline
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              OutputArtifacts:
+                - Name: ${AWS::StackName}-sourceartif
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo           ?????????????????????????????
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubOAuth
+                PollForSourceChanges: false
+              RunOrder: 1            
+              
+# CodeDeploy Deploy Action (NOT ACTUALLY AN ALTERNATIVE, I'M COMING BACK TO IT)
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: ${AWS::StackName}-buildartif
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !Ref CodeDeployApplicationName 
+                DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
+              RunOrder: 1 
