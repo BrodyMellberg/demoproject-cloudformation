@@ -106,7 +106,7 @@ Resources:
         - Image: !Sub 
             - ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepoName}:latest
             - RepoName: !Ref ECRRepoName   
-          Name: demoproject
+          Name: !Ref ECRRepoName
           PortMappings:
             - ContainerPort: 8089
               Protocol: HTTP
@@ -139,7 +139,7 @@ Resources:
       HealthCheckGracePeriodSeconds: 10
       LaunchType: FARGATE
       LoadBalancers:
-        - ContainerName: demoproject
+        - ContainerName: !Ref ECRRepoName
           ContainerPort: 8089
           TargetGroupArn: !Ref DemoProjectTargetGroup
       NetworkConfiguration:

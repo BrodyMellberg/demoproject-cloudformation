@@ -1,6 +1,6 @@
 [
   {
-    "name": "demoproject",
-    "imageUri": "343850139185.dkr.ecr.us-east-2.amazonaws.com/demoproject:latest"
+    "name": "finalstack",
+    "imageUri": "343850139185.dkr.ecr.us-east-2.amazonaws.com/demoproject:finalstack"
   }
 ]
