@@ -286,28 +286,26 @@ Resources:
   DemoProjectDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
     DependsOn: DemoProjectCodeDeployApp
-      Properties: 
-        ApplicationName: !Ref DemoProjectCodeDeployApp
-        Deployment:
-          Description: String
-            Revision: 
-              RevisionType: S3
-              S3Location: 
-                Bucket: DemoProjectS3Bucket
-                Key: buildartifact
-        DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
-        DeploymentGroupName: demoproject-codedeploygroup
-        DeploymentStyle:
-          DeploymentOption: WITH_TRAFFIC_CONTROL
-          DeploymentType: BLUE_GREEN
-        LoadBalancerInfo: 
-          ElbInfoList:
-            Name: DemoProjectLoadBalancer 
-          TargetGroupInfoList:
-            Name: DemoProjectTargetGroup
-        ServiceRoleArn: Fn::GetAtt:[CodeDeployServiceRole, Arn]
-        TriggerConfigurations: 
-          - TriggerConfig
+    Properties: 
+      ApplicationName: !Ref DemoProjectCodeDeployApp
+      # Deployment:
+        # Description: String
+        # Revision: 
+          # RevisionType: S3
+          # S3Location: 
+            # Bucket: DemoProjectS3Bucket
+            # Key: buildartifact
+      DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+      DeploymentGroupName: demoproject-codedeploygroup
+      DeploymentStyle:
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        DeploymentType: BLUE_GREEN
+      LoadBalancerInfo: 
+        ElbInfoList:
+          - Name: DemoProjectLoadBalancer 
+        TargetGroupInfoList:
+          - Name: DemoProjectTargetGroup
+      ServiceRoleArn: {"Fn::GetAtt" : ["CodeDeployServiceRole", "Arn"] }
 
   DemoProjectPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
