@@ -1,13 +1,11 @@
-# Final Stack with all resources being created in a single file
-# it is a better practise to separate components into different 
-# stacks and import them, but I am not doing this due to time 
-# constraints
+# Author: Brody Mellberg, Sudhakar Vuppalapati
+# Last Modified: 06/02/2020
+# This CloudFormation template will create a CICD pipeline in AWS
 
 # VPC, Load Balancer, Subnet code provided by Sudhakar Vuppalapati
 # PREREQUISITES
 # Have a docker image in the ECR repo with the tag 'latest'
-# Update the project buildspec or stack build commands to 
-# make CodeBuild push new images to this repo with this tag
+# GitHub OAuth Token 
 
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
@@ -251,7 +249,7 @@ Resources:
     Type: AWS::CodePipeline::Webhook
     Properties: 
       Name: codepipeline-webhook      
-      Authentication: GITHUB_HMAC #Unauthenticated just isn't working
+      Authentication: GITHUB_HMAC 
       AuthenticationConfiguration:
         SecretToken: !Ref GitHubSecret
       Filters: 
@@ -270,7 +268,7 @@ Resources:
       RoleArn: !GetAtt 
         - CodePipelineServiceRole
         - Arn
-      ArtifactStore:
+      ArtifactStore: 
         Type: S3
         Location: !Ref DemoProjectS3Bucket
       Stages:
