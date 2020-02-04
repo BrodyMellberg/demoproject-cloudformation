@@ -27,10 +27,15 @@ Parameters:
     Type: String
   GitHubRepo:
     Type: String
+    Description: Location of source code
   GitHubBranch:
     Type: String
+    Description: Source code branch to be monitored
   GitHubOAuth:
     Type: String
+  GitHubSecret:
+    Type: String
+    Description: create a secret token
   
 Resources:
   DemoProjectTargetGroup:
@@ -241,6 +246,22 @@ Resources:
           - Name: IMAGE_REPO_NAME
             Value: !Ref ECRRepoName      
       ServiceRole: !Ref CodeBuildServiceRole
+  
+  DemoProjectWebHook:
+    Type: AWS::CodePipeline::Webhook
+    Properties: 
+      Name: codepipeline-webhook      
+      Authentication: GITHUB_HMAC #Unauthenticated just isn't working
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubSecret
+      Filters: 
+      - JsonPath: "$.ref" 
+        MatchEquals: refs/heads/{Branch} 
+      RegisterWithThirdParty: true
+      TargetAction: SourceAction
+      TargetPipeline: !Ref DemoProjectPipeline
+      TargetPipelineVersion: !GetAtt DemoProjectPipeline.Version
+
 
   DemoProjectPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
@@ -299,4 +320,3 @@ Resources:
                 ClusterName: !Ref DemoProjectCluster
                 ServiceName: !Ref DemoProjectService
               RunOrder: 3 
-   
