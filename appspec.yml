@@ -1,23 +1,19 @@
+# the variable names are just strings, I don't know how to 
+# 
+
 version: 0.0
 Resources:
   - TargetService:
       Type: AWS::ECS::Service
       Properties:
-        TaskDefinition: "task-definition-ARN"
+        TaskDefinition: <TASK_DEFINITION>
         LoadBalancerInfo:
-          ContainerName: "container-name"
-          ContainerPort: container-port-number
+          ContainerName: finalstack
+          ContainerPort: 8089
 # Optional properties
         PlatformVersion: "LATEST"
         NetworkConfiguration:
             AwsvpcConfiguration:
-              Subnets: ["subnet-name-1", "subnet-name-2"]
-              SecurityGroups: ["security-group"]
+              Subnets: ["subnet-00345bf161647b736", "subnet-07de10ddb740b2190", "subnet-03c8287fe911e3ec2"]
+              SecurityGroups: POCContainerSecurityGroup
               AssignPublicIp: "ENABLED"
-
-Hooks:
-- BeforeInstall: "BeforeInstallHookFunctionName"
-- AfterInstall: "AfterInstallHookFunctionName"
-- AfterAllowTestTraffic: "AfterAllowTestTrafficHookFunctionName"
-- BeforeAllowTraffic: "BeforeAllowTrafficHookFunctionName"
-- AfterAllowTraffic: "AfterAllowTrafficHookFunctionName"

@@ -86,8 +86,7 @@ CodeDeployServiceRole: # stolen from codebuild service role
                 DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
                 TaskDefinitionTemplateArtifact: SourceArtifact
                 AppSpecTemplateArtifact: SourceArtifact
-                AppSpecTemplatePath: appspec.yaml
-                
+                AppSpecTemplatePath: appspec.yaml                
               RunOrder: 1 
         
         - Name: Deploy
