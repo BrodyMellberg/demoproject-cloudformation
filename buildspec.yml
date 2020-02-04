@@ -27,3 +27,4 @@ artifacts:
   files:
     - target/demo-0.0.1-SNAPSHOT.jar
     - imagedefinitions.json
+#    - appspec.yml

@@ -10,14 +10,67 @@
               OutputArtifacts:
                 - Name: ${AWS::StackName}-sourceartif
               Configuration:
-                Owner: !Ref GitHubOwner
-                Repo: !Ref GitHubRepo           ?????????????????????????????
-                Branch: !Ref GitHubBranch
-                OAuthToken: !Ref GitHubOAuth
+                # Owner: !Ref GitHubOwner
+                # Repo: !Ref GitHubRepo           ?????????????????????????????
+                # Branch: !Ref GitHubBranch
+                # OAuthToken: !Ref GitHubOAuth
                 PollForSourceChanges: false
               RunOrder: 1            
               
 # CodeDeploy Deploy Action (NOT ACTUALLY AN ALTERNATIVE, I'M COMING BACK TO IT)
+
+####    CODEDEPLOY    ####
+DemoProjectCodeDeployApp:
+    Type: AWS::CodeDeploy::Application
+    Properties: 
+        ApplicationName: demoproject-codedeployapp
+        ComputePlatform: ECS
+
+DemoProjectDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn: DemoProjectCodeDeployApp
+    Properties: 
+        ApplicationName: !Ref DemoProjectCodeDeployApp
+        Deployment:
+            Description: String
+                #IgnoreApplicationStopFailures: Boolean
+                Revision: 
+                    RevisionType: S3
+                    S3Location: 
+                        Bucket: DemoProjectS3Bucket
+                        #ETag: String
+                        Key: buildartifact # !!!! need to differentiate between source and build artif bucket
+                        # hopefully it can be found in the right directory
+                        #Version: String
+        DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
+        DeploymentGroupName: demoproject-codedeploygroup
+        DeploymentStyle:
+            DeploymentOption: WITH_TRAFFIC_CONTROL
+            DeploymentType: BLUE_GREEN
+        LoadBalancerInfo: 
+            ElbInfoList:
+                Name: DemoProjectLoadBalancer 
+            TargetGroupInfoList:
+                Name: DemoProjectTargetGroup
+        ServiceRoleArn: Fn::GetAtt:[CodeDeployServiceRole, Arn]
+        TriggerConfigurations: 
+           - TriggerConfig
+
+CodeDeployServiceRole: # stolen from codebuild service role 
+    Type: AWS::IAM::Role
+    Properties:
+        AssumeRolePolicyDocument:
+            Version: "2012-10-17" # ?????
+            Statement:
+                Effect: Allow
+                Principal:
+                    Service: codedeploy.amazonaws.com
+                Action: sts:AssumeRole
+        ManagedPolicyArns:
+            - arn:aws:iam::aws:policy/AdministratorAccess
+
+        
+        # PIPELINE ACTION 
         - Name: Deploy
           Actions:
             - Name: DeployAction
@@ -29,10 +82,25 @@
                 Version: 1
                 Provider: CodeDeployToECS
               Configuration:
-                ApplicationName: !Ref CodeDeployApplicationName 
+                ApplicationName: !Ref DemoProjectCodeDeployApp
                 DeploymentGroupName: !Ref DemoProjectDeploymentGroup 
-                TaskDefinitionTemplateArtifact:
-                AppSpecTemplateArtifact:
-                AppSpecTemplatePath:
+                TaskDefinitionTemplateArtifact: SourceArtifact
+                AppSpecTemplateArtifact: SourceArtifact
+                AppSpecTemplatePath: appspec.yaml
                 
               RunOrder: 1 
+        
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: ${AWS::StackName}-buildartif
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CodeDeploy
+              Configuration:
+                ApplicationName: !Ref DemoProjectCodeDeployApp
+                DeploymentGroupName: !Ref DemoProjectDeploymentGroup           
+              RunOrder: 1               

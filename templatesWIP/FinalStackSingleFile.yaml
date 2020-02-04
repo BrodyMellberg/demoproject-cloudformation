@@ -82,6 +82,8 @@ Resources:
       LoadBalancerArn: !Ref DemoProjectLoadBalancer
       Port: 8089
       Protocol: HTTP
+  
+
 
   # ECS RESOURCES
   DemoProjectCluster:
@@ -132,6 +134,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref DemoProjectCluster
+#      DeploymentController: CODE_DEPLOY
       DeploymentConfiguration:
         MaximumPercent: 100
         MinimumHealthyPercent: 50
@@ -281,7 +284,7 @@ Resources:
                 Version: 1
                 Provider: GitHub
               OutputArtifacts:
-                - Name: sourceartif
+                - Name: sourceartifact
               Configuration:
                 Owner: !Ref GitHubOwner
                 Repo: !Ref GitHubRepo
@@ -298,9 +301,9 @@ Resources:
                 Version: 1
                 Provider: CodeBuild
               InputArtifacts:
-                - Name: sourceartif
+                - Name: sourceartifact
               OutputArtifacts:
-                - Name: buildartif
+                - Name: buildartifact
               Configuration:
                 ProjectName: !Ref CodeBuildProject
               RunOrder: 2                               
@@ -308,7 +311,7 @@ Resources:
           Actions:
             - Name: DeployAction
               InputArtifacts:
-                - Name: buildartif
+                - Name: buildartifact
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
