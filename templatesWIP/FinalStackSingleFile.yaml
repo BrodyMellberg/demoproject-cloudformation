@@ -1,28 +1,27 @@
 # Author: Brody Mellberg, Sudhakar Vuppalapati
 # Last Modified: 06/02/2020
 # This CloudFormation template will create a CICD pipeline in AWS
-
 # VPC, Load Balancer, Subnet code provided by Sudhakar Vuppalapati
+
 # PREREQUISITES
-# Have a docker image in the ECR repo with the tag 'latest'
-# GitHub OAuth Token 
+# Have a docker image in the desired ECR repo with the tag 'latest'
+# OAuth GitHub token with 'repo' and 'admin:repo_hook' permissions
+# 
 
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
-  # SERVICE PARAMETERS
   DemoProjectSubnet1:
     Type: List<AWS::EC2::Subnet::Id>
-    Description: Please select 1st private subnet for your Service
+    Description: Please select 1st private subnet for your Service (default subnets recommended)
   DemoProjectVPC:
     Type: AWS::EC2::VPC::Id
-    Description: Please select the vpc for your TargetGroup (default VPC recommended)
-  
+    Description: Please select the vpc for your TargetGroup (default VPC recommended)  
   ECRRepoName:
     Description: Name of the ECR Repo
     Type: String
-  
   GitHubOwner:
     Type: String
+    Description: GitHub username
   GitHubRepo:
     Type: String
     Description: Location of source code
@@ -33,9 +32,11 @@ Parameters:
     Type: String
   GitHubSecret:
     Type: String
-    Description: create a secret token
+    Description: Secret token for pipeline webhook
   
 Resources:
+  
+  #LOAD BALANCER RESOURCES
   DemoProjectTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
@@ -83,8 +84,15 @@ Resources:
       Port: 8089
       Protocol: HTTP
   
-
-
+  POCLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      VpcId: !Ref DemoProjectVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1  
+  
   # ECS RESOURCES
   DemoProjectCluster:
     Type: AWS::ECS::Cluster
@@ -104,7 +112,6 @@ Resources:
     Type: AWS::ECS::TaskDefinition
     Properties:
       ContainerDefinitions:
-        #- Image: "969829910614.dkr.ecr.us-east-2.amazonaws.com/nuance/demoproject-service:latest"
         - Image: !Sub 
             - ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepoName}:latest
             - RepoName: !Ref ECRRepoName   
@@ -156,8 +163,7 @@ Resources:
       Tags:
         - Key: Name
           Value: AWS-ecs-fargate-service-cf-tag
-      TaskDefinition: !Ref DemoProjectTaskDefinition
-            
+      TaskDefinition: !Ref DemoProjectTaskDefinition         
        
   POCContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -176,15 +182,6 @@ Resources:
           IpProtocol: -1
           ToPort: "8083"
         - FromPort: "8083"
-          IpProtocol: -1
-          
-  POCLoadBalancerSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for loadbalancer to services on ECS
-      VpcId: !Ref DemoProjectVPC
-      SecurityGroupIngress:
-        - CidrIp: 0.0.0.0/0
           IpProtocol: -1
   
   # PIPELINE RESOURCES  
@@ -262,7 +259,6 @@ Resources:
       TargetAction: SourceAction
       TargetPipeline: !Ref DemoProjectPipeline
       TargetPipelineVersion: !GetAtt DemoProjectPipeline.Version
-
 
   DemoProjectPipeline:
     Type: 'AWS::CodePipeline::Pipeline'

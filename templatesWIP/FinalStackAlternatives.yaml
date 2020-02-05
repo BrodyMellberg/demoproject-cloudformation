@@ -1,3 +1,11 @@
+# Author: Brody Mellberg
+# Last Modified: 06/02/20
+# 
+# This file contains basic templates for alternate source and
+# deploy actions. I did not have time to implement this code 
+# properly and so they do not work. However, the overall 
+# structure and requirements of these templates is accurate
+
 # CODECOMMIT Source Stage for Pipeline
         - Name: Source
           Actions:
@@ -10,14 +18,11 @@
               OutputArtifacts:
                 - Name: ${AWS::StackName}-sourceartif
               Configuration:
-                # Owner: !Ref GitHubOwner
-                # Repo: !Ref GitHubRepo           ?????????????????????????????
-                # Branch: !Ref GitHubBranch
-                # OAuthToken: !Ref GitHubOAuth
+                RepositoryName: String
+                BranchName: String
                 PollForSourceChanges: false
               RunOrder: 1            
               
-# CodeDeploy Deploy Action (NOT ACTUALLY AN ALTERNATIVE, I'M COMING BACK TO IT)
 
 ####    CODEDEPLOY    ####
 DemoProjectCodeDeployApp:
@@ -25,6 +30,11 @@ DemoProjectCodeDeployApp:
     Properties: 
         ApplicationName: demoproject-codedeployapp
         ComputePlatform: ECS
+
+# Problems:
+# When I try to run this, AWS throws an error saying "LoadBalancerInfo 
+# cannot be defined". When I comment it out, it says "LoadBalancerInfo must
+# be defined".
 
 DemoProjectDeploymentGroup:
     Type: AWS::CodeDeploy::DeploymentGroup
@@ -38,10 +48,7 @@ DemoProjectDeploymentGroup:
                     RevisionType: S3
                     S3Location: 
                         Bucket: DemoProjectS3Bucket
-                        #ETag: String
-                        Key: buildartifact # !!!! need to differentiate between source and build artif bucket
-                        # hopefully it can be found in the right directory
-                        #Version: String
+                        Key: buildartifact 
         DeploymentConfigName: CodeDeployDefault.ECSAllAtOnce
         DeploymentGroupName: demoproject-codedeploygroup
         DeploymentStyle:
@@ -53,14 +60,16 @@ DemoProjectDeploymentGroup:
             TargetGroupInfoList:
                 Name: DemoProjectTargetGroup
         ServiceRoleArn: Fn::GetAtt:[CodeDeployServiceRole, Arn]
-        TriggerConfigurations: 
-           - TriggerConfig
 
-CodeDeployServiceRole: # stolen from codebuild service role 
+# Most online resources explain methods of performing CodeDeploy actions
+# separately, using the AWS console. Doing this appears to be much easier
+# than attempting to do it through CloudFormation. Some sources suspect
+# a lack of support for CloudFormation. 
+CodeDeployServiceRole:
     Type: AWS::IAM::Role
     Properties:
         AssumeRolePolicyDocument:
-            Version: "2012-10-17" # ?????
+            Version: "2012-10-17"
             Statement:
                 Effect: Allow
                 Principal:
@@ -68,7 +77,6 @@ CodeDeployServiceRole: # stolen from codebuild service role
                 Action: sts:AssumeRole
         ManagedPolicyArns:
             - arn:aws:iam::aws:policy/AdministratorAccess
-
         
         # PIPELINE ACTION 
         - Name: Deploy
