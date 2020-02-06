@@ -10,7 +10,7 @@ import com.infy.agco.util.Welcome;
 @RestController
 public class HealthCheckController
 {
-    private static final String welcomemsg = "Welcome! This is HealthCheckController";
+    private static final String welcomemsg = "Welcome! This is HealthCheckController TEST";
 	
 	@RequestMapping(value="/stat", method=RequestMethod.GET )
     @ResponseBody
