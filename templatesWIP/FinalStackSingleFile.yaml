@@ -217,6 +217,7 @@ Resources:
           Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
+  
     
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
