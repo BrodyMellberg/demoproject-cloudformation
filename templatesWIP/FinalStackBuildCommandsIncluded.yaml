@@ -1,0 +1,346 @@
+# Author: Brody Mellberg, Sudhakar Vuppalapati
+# Last Modified: 06/02/2020
+# This CloudFormation template will create a CICD pipeline in AWS
+# VPC, Load Balancer, Subnet code provided by Sudhakar Vuppalapati
+
+# PREREQUISITES
+# Have a docker image in the desired ECR repo with the tag 'latest'
+# OAuth GitHub token with 'repo' and 'admin:repo_hook' permissions
+# 
+
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  DemoProjectSubnet1:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Please select 1st private subnet for your Service (default subnets recommended)
+  DemoProjectVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: Please select the vpc for your TargetGroup (default VPC recommended)  
+  ECRRepoName:
+    Description: Name of the ECR Repo
+    Type: String
+  GitHubOwner:
+    Type: String
+    Description: GitHub username
+  GitHubRepo:
+    Type: String
+    Description: Location of source code
+  GitHubBranch:
+    Type: String
+    Description: Source code branch to be monitored
+  GitHubOAuth:
+    Type: String
+  GitHubSecret:
+    Type: String
+    Description: Secret token for pipeline webhook
+  
+Resources:
+  
+  #LOAD BALANCER RESOURCES
+  DemoProjectTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /opc/v1/ping
+      HealthCheckPort: 8089
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200-299
+      Name: !Sub ${AWS::StackName}-targetgroup
+      Port: 8089
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: DemoProjectTargetGroup-tag
+      TargetType: ip
+      UnhealthyThresholdCount: 5
+      VpcId: !Ref DemoProjectVPC
+
+  DemoProjectLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: !Sub ${AWS::StackName}-loadbalancer
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref POCContainerSecurityGroup
+      Subnets: !Ref DemoProjectSubnet1
+      Tags:
+        - Key: Name
+          Value: DemoProjectLoadBalancer-tag
+      Type: application
+
+  DemoProjectLBListener:
+    DependsOn: DemoProjectLoadBalancer
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref DemoProjectTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref DemoProjectLoadBalancer
+      Port: 8089
+      Protocol: HTTP
+  
+  POCLoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      VpcId: !Ref DemoProjectVPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1  
+  
+  # ECS RESOURCES
+  DemoProjectCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: AWS-ecs-fargate-cluster-cf
+      Tags:
+      - Key: Name
+        Value: AWS-ecs-fargate-cluster-cf-tag
+
+  DemoProjectLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${AWS::StackName}-loggroup
+      RetentionInDays: 7
+
+  DemoProjectTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Image: !Sub 
+            - ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepoName}:latest
+            - RepoName: !Ref ECRRepoName   
+          Name: !Ref ECRRepoName
+          PortMappings:
+            - ContainerPort: 8089
+              Protocol: HTTP
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:  !Ref DemoProjectLogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix:  'database-con'
+      Cpu: "512"
+      ExecutionRoleArn: !Sub arn:aws:iam::${AWS::AccountId}:role/ecsTaskExecutionRole
+      Family: DemoProjectTaskDefinition-2
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+        - Key: Name
+          Value: AWS-ecs-fargate-task-definition-cf-tag
+
+  DemoProjectService:
+    DependsOn: DemoProjectLBListener
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref DemoProjectCluster
+#      DeploymentController: CODE_DEPLOY
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: !Ref ECRRepoName
+          ContainerPort: 8089
+          TargetGroupArn: !Ref DemoProjectTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: 
+            - !Ref POCContainerSecurityGroup
+          Subnets: !Ref DemoProjectSubnet1 
+      SchedulingStrategy: REPLICA
+      ServiceName: AWS-ecs-fargate-service-cf
+      Tags:
+        - Key: Name
+          Value: AWS-ecs-fargate-service-cf-tag
+      TaskDefinition: !Ref DemoProjectTaskDefinition         
+       
+  POCContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref DemoProjectVPC
+      GroupDescription: for ecs containers
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          FromPort: "8089"
+          IpProtocol: -1
+          ToPort: "3000"
+        - FromPort: "3000"
+          IpProtocol: -1
+          ToPort: "27017"
+        - FromPort: "27017"
+          IpProtocol: -1
+          ToPort: "8083"
+        - FromPort: "8083"
+          IpProtocol: -1
+  
+  # PIPELINE RESOURCES  
+  DemoProjectS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      AccessControl: BucketOwnerFullControl
+    
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: codebuild.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+    
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+  
+    
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: CodeBuildServiceRole 
+    Properties: 
+      Name: !Sub ${AWS::StackName}-buildproject      
+      Artifacts:
+        Type: CODEPIPELINE
+      Source: 
+        Type: CODEPIPELINE      
+        Buildspec: |
+          version: 0.2
+          phases:
+            install:
+              runtime-versions:
+                docker: 18
+            pre_build:
+              commands:
+                - echo Logging in to ECR # Log in
+                - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+            build:
+              commands:
+                - echo Build started on `date`
+                - echo Building Maven
+                - mvn clean install # Build with Maven
+                - echo Building Docker image...          
+                - docker build -t $IMAGE_REPO_NAME . #:$IMAGE_TAG .
+                - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+            post_build:
+              commands:
+                - echo Build completed on `date`
+                - echo Pushing the Docker image...
+                - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+          artifacts:
+            files:
+              - target/demo-0.0.1-SNAPSHOT.jar
+              - imagedefinitions.json
+      Environment: 
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: "aws/codebuild/standard:2.0" 
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: AWS_ACCOUNT_ID
+            Value: !Ref AWS::AccountId
+          - Name: IMAGE_TAG
+            Value: latest
+          - Name: IMAGE_REPO_NAME
+            Value: !Ref ECRRepoName      
+      ServiceRole: !Ref CodeBuildServiceRole
+  
+  DemoProjectWebHook:
+    Type: AWS::CodePipeline::Webhook
+    Properties: 
+      Name: codepipeline-webhook      
+      Authentication: GITHUB_HMAC 
+      AuthenticationConfiguration:
+        SecretToken: !Ref GitHubSecret
+      Filters: 
+      - JsonPath: "$.ref" 
+        MatchEquals: refs/heads/{Branch} 
+      RegisterWithThirdParty: true
+      TargetAction: SourceAction
+      TargetPipeline: !Ref DemoProjectPipeline
+      TargetPipelineVersion: !GetAtt DemoProjectPipeline.Version
+
+  DemoProjectPipeline:
+    Type: 'AWS::CodePipeline::Pipeline'
+    Properties:
+      Name: !Sub ${AWS::StackName}-pipeline
+      RoleArn: !GetAtt 
+        - CodePipelineServiceRole
+        - Arn
+      ArtifactStore: 
+        Type: S3
+        Location: !Ref DemoProjectS3Bucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              OutputArtifacts:
+                - Name: sourceartifact
+              Configuration:
+                Owner: !Ref GitHubOwner
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubOAuth
+                PollForSourceChanges: false
+              RunOrder: 1            
+        - Name: Build
+          Actions:
+            - Name: BuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: sourceartifact
+              OutputArtifacts:
+                - Name: buildartifact
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: 2                               
+        - Name: Deploy
+          Actions:
+            - Name: DeployAction
+              InputArtifacts:
+                - Name: buildartifact
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName: !Ref DemoProjectCluster
+                ServiceName: !Ref DemoProjectService
+              RunOrder: 3 
